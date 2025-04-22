@@ -33,17 +33,27 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 builder.Services.AddScoped<ValidationFilterAttribute>();
 builder.Services.ConfigureVersioning();
+builder.Services.ConfigureRateLimitingOptions();
+//builder.Services.ConfigureResponseCaching();
+builder.Services.ConfigureOutputCaching();
 builder.Services.AddControllers(config =>
 {
     config.RespectBrowserAcceptHeader = true;
     config.ReturnHttpNotAcceptable = true;
     config.InputFormatters.Insert(0, GetJsonPatchInputFormatter());
+    //config.CacheProfiles.Add("120SecondsDuration", new CacheProfile{Duration = 120});
 
 })
     .AddXmlDataContractSerializerFormatters()
     .AddCustomCSVFormatter()
     .AddApplicationPart(typeof(AssemblyReference).Assembly);
 builder.Services.AddCustomMediaTypes();
+builder.Services.AddAuthentication();
+builder.Services.ConfigureIdentity();
+builder.Services.ConfigureJWT(builder.Configuration);
+builder.Services.AddJwtConfiguration(builder.Configuration);
+builder.Services.ConfigureSwagger();
+
 var app = builder.Build();
 
 //var logger = app.Services.GetRequiredService<ILoggerManager>();
@@ -58,7 +68,17 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.All
 });
+app.UseRateLimiter();
 app.UseCors("CorsPolicy");
+//app.UseResponseCaching();
+app.UseOutputCache();
+app.UseSwagger();
+app.UseSwaggerUI(s =>
+{
+    s.SwaggerEndpoint("/swagger/v1/swagger.json", "Code Maze API v1");
+    s.SwaggerEndpoint("/swagger/v2/swagger.json", "Code Maze API v2");
+});
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
